@@ -30,21 +30,23 @@ This project explores the physical security of a LoRaWAN node based on a Heltec 
 
 ### 2. Hardware Analysis and Firmware Extraction (TP-Link Tapo C100)
 
-This project documents the hardware analysis of a TP-Link Tapo C100 camera. The objective is to obtain privileged access to the system and extract the complete firmware for analysis.
+This project documents the hardware analysis of a TP-Link Tapo C100 camera. The objective is to obtain privileged access to the system, extract the complete firmware, and analyze the file system for sensitive artifacts.
 
 **Method 1: Root Access via UART**
 This approach exploits the camera's serial interface to obtain a root shell on the embedded Linux system (BusyBox).
 
 * Hardware Reconnaissance: Disassembly and identification of UART test points (TX, RX, GND) on the PCB.
 * Connection: Use of an FTDI USB-TTL adapter and PCB probes (baud rate: 115200).
-* Exploitation: Interception of boot logs and authentication using known credentials.
-* Result: Full access to the file system and identification of the firmware partition (/dev/mtd10).
+* Exploitation: Interception of boot logs and authentication using known credentials (`slpingenic`).
+* Result: Full access to the file system and identification of the firmware partition (`/dev/mtd10`).
 
-**Method 2: Direct Flash Extraction (SPI)**
-This method bypasses potential software protections (such as unknown root passwords or disabled shells) by interacting directly with the storage chip.
+**Method 2: Flash Extraction & Forensic Analysis**
+This method bypasses software protections by interacting directly with the SPI Flash chip to perform a full memory dump and offline analysis.
 
-* Hardware: CH341A Programmer and SOIC8/SOP8 test clip.
-* Extraction Logic:
-    1. Physical connection of the clip to the SPI Flash chip directly on the circuit board (In-Circuit Serial Programming).
-    2. Use of the programmer to power the chip and read the raw content (raw binary) via the SPI protocol, independent of the camera's main processor.
-    3. The resulting binary file can then be analyzed to reconstruct the file system.
+* **Hardware:** CH341A Programmer (Black Edition) and SOIC8/SOP8 test clip.
+* **Software:** IMSProg (Linux) for extraction, Unblob & SquashFS-tools for analysis.
+* **Process:**
+    1. **Dump:** In-circuit reading of the XMC 25QH64 chip via SPI protocol to obtain a raw binary image.
+    2. **Extraction:** Automated analysis using `unblob` to identify and extract the SquashFS root filesystem.
+    3. **Forensics:** Exploration of the extracted `rootfs`.
+* **Findings:** Discovery of unencrypted RSA private keys and certificates in `/etc` (e.g., `uhttpd.key`, `uhttpd.crt`) and `/etc/data/dss_certificates`, confirming the exposure of sensitive cryptographic material at rest.
